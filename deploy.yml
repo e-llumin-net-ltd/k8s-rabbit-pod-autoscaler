@@ -6,6 +6,7 @@ metadata:
 rules:
   - apiGroups: ["*"]
     resources: ["deployments", "deployments/scale"]
+    resources: ["statefulsets", "statefulsets/scale"]
     verbs: ["get", "list", "update"]
 ---
 apiVersion: v1
@@ -70,8 +71,8 @@ spec:
                   key: rabbit-pass
             - name: AUTOSCALING
               value: >
-                3|10|5|development|example|example.queue;
-                3|5|3|development|example2|example2.queue
+                3|10|5|development|example|example.queue|statefulset;
+                3|5|3|development|example2|example2.queue|deployment
             - name: LOGS
               value: HIGH
             - name: SLACK_HOOK
