@@ -1,12 +1,13 @@
 #!/bin/bash
 
 namespace=""
-deployment=""
+workload=""
+workloadType="deployment"
 
 function getCurrentPods() {
   # Retry up to 5 times if kubectl fails
   for i in $(seq 5); do
-    current=$(kubectl -n $namespace describe deploy $deployment | \
+    current=$(kubectl -n $namespace describe $workloadType $workload | \
       grep desired | awk '{print $2}' | head -n1)
 
     if [[ $current != "" ]]; then
@@ -33,7 +34,7 @@ IFS=';' read -ra autoscalingArr <<< "$autoscalingNoWS"
 
 while true; do
   for autoscaler in "${autoscalingArr[@]}"; do
-    IFS='|' read minPods maxPods mesgPerPod namespace deployment queueName <<< "$autoscaler"
+    IFS='|' read minPods maxPods mesgPerPod namespace workload queueName <<< "$autoscaler"
 
     queueMessagesJson=$(curl -s -S --retry 3 --retry-delay 3 -u "$RABBIT_USER:$RABBIT_PASS" \
       $RABBIT_HOST:15672/api/queues/%2f/$queueName)
@@ -75,7 +76,7 @@ while true; do
                 desiredPods=$(awk "BEGIN { print int( ($currentPods - $desiredPods) * 0.9 + $desiredPods ) }")
               fi
 
-              kubectl scale -n $namespace --replicas=$desiredPods deployment/$deployment 1> /dev/null
+              kubectl scale -n $namespace --replicas=$desiredPods $workloadType/$workload 1> /dev/null
 
               if [[ $? -eq 0 ]]; then
                 # Adjust logging and Slack notifications based on LOGS env and desiredPods number
@@ -91,12 +92,12 @@ while true; do
                 fi
 
                 if $log ; then
-                  echo "$(date) -- Scaled $namespace: $deployment to $desiredPods pods ($queueMessages msg in RabbitMQ)"
-                  notifySlack "Scaled $namespace: $deployment to $desiredPods pods ($queueMessages msg in RabbitMQ)"
+                  echo "$(date) -- Scaled $namespace: $workload to $desiredPods pods ($queueMessages msg in RabbitMQ)"
+                  notifySlack "Scaled $namespace: $workload to $desiredPods pods ($queueMessages msg in RabbitMQ)"
                 fi
               else
-                echo "$(date) -- Failed to scale $namespace: $deployment pods."
-                notifySlack "Failed to scale $namespace: $deployment pods."
+                echo "$(date) -- Failed to scale $namespace: $workload pods."
+                notifySlack "Failed to scale $namespace: $workload pods."
               fi
             fi
           fi
