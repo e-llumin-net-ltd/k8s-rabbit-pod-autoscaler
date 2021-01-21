@@ -2,12 +2,11 @@
 
 namespace=""
 workload=""
-workloadType="deployment"
 
 function getCurrentPods() {
   # Retry up to 5 times if kubectl fails
   for i in $(seq 5); do
-    current=$(kubectl -n $namespace describe $workloadType $workload | \
+    current=$(kubectl -n $namespace describe $1 $workload | \
       grep desired | awk '{print $2}' | head -n1)
 
     if [[ $current != "" ]]; then
@@ -34,7 +33,7 @@ IFS=';' read -ra autoscalingArr <<< "$autoscalingNoWS"
 
 while true; do
   for autoscaler in "${autoscalingArr[@]}"; do
-    IFS='|' read minPods maxPods mesgPerPod namespace workload queueName <<< "$autoscaler"
+    IFS='|' read minPods maxPods mesgPerPod namespace workload queueName workloadType <<< "$autoscaler"
 
     queueMessagesJson=$(curl -s -S --retry 3 --retry-delay 3 -u "$RABBIT_USER:$RABBIT_PASS" \
       $RABBIT_HOST:15672/api/queues/%2f/$queueName)
@@ -44,7 +43,7 @@ while true; do
       requiredPods=$(echo "$queueMessages/$mesgPerPod" | bc 2> /dev/null)
 
       if [[ $requiredPods != "" ]]; then
-        currentPods=$(getCurrentPods)
+        currentPods=$(getCurrentPods($workloadType))
 
         if [[ $currentPods != "" ]]; then
           if [[ $requiredPods -ne $currentPods ]]; then
